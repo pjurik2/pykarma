@@ -1,0 +1,11 @@
+WoW=world-of-warcraft
+US=usa
+AI=artificial-intelligence
+Less Wrong=less-wrong
+EU=european-union
+ToS=terms-of-service
+Modern Warfare=modern-warfare
+GOP=republican-party
+DMCAs=DMCA
+UN=united-nations
+NYE=new-year
