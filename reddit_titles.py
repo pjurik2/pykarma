@@ -12,8 +12,7 @@ from copy import copy
 import codecs
 import web
 
-from persistence import pickle_load, pickle_save
-from repl import *
+from storage import *
 
 def re_ccompiler(terms):
     return re_compiler(terms, re.IGNORECASE)
@@ -346,14 +345,17 @@ class TitleStats:
                     time.sleep(10)
                     continue
                 else:
-                    print 'Crawled /r/%s -' % pre_crawl_sub, len(self.words), 'words,', len(self.subs), 'subs,', '%d/%d links (%d/%d new)' % (len(links), len(self.link_names), self.correct, new)
+                    print 'Crawled /r/%s -' % pre_crawl_sub, \
+                    '%d/%d links were new. Training: %d sorted correctly.' % (new, len(links), self.correct), \
+                    'Now storing:', len(self.words), 'words,', len(self.subs), \
+                    'subs,', len(self.link_names), 'links'
                     time.sleep(3)
                     continue
 
 
             retest_correct = self.test(links)
             print 'Crawled /r/%s -' % crawl_sub, \
-                  '%d/%d links were new. Guessed correct subreddit for %d links before training, %d after.' % \
+                  '%d/%d links were new. Training: %d -> %d sorted correctly.' % \
                   (new, len(links), self.correct, retest_correct), \
                   'Now storing:', len(self.words), 'words,', len(self.subs), \
                   'subs,', len(self.link_names), 'links'

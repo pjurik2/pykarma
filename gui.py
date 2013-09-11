@@ -7,9 +7,9 @@ import time
 
 import pyperclip
 
-import rtitles
+import reddit_titles
 from guiserv import GUIServer
-from persistence import pickle_load, pickle_save
+from storage import *
 import reddit
 
 HOST = 'localhost'
@@ -44,7 +44,7 @@ class GUIMain:
         self.links_lock = threading.Lock()
         self.check_lock = threading.Lock()
         self.url_next = None
-        self.title_stats = rtitles.TitleStats()
+        self.title_stats = reddit_titles.TitleStats()
         self.rtitles_thread = threading.Thread(target=self.title_stats.crawl)
         self.rtitles_thread.start()
         

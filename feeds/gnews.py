@@ -1,7 +1,7 @@
 import rss
 from rss import RSSFeed
 
-def GoogleNewsFeed(RSSFeed):
+class GoogleNewsFeed(RSSFeed):
     def configure(self):
         self.title = 'Google'
         self.streams = ['http://news.google.com/news?pz=1&cf=all&ned=us&hl=en&topic=tc&output=rss',

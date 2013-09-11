@@ -10,18 +10,18 @@ if __name__ == '__main__':
     p.start()
     time.sleep(5)
 
-    functions = (
-##                 hn.hn_watch,
-##                 gnews.gnews_watch,
-##                 count.count_watch,
-##                 ars.ars_watch,
-##                 physorg.physorg_watch,
-##                 reuters.reuters_watch,
-##                 bbc.bbc_watch,
-##                 torrentfreak.torrentfreak_watch,
-                 )
+    feeds = (
+                #hn.HackerNewsFeed(),
+                #gnews.GoogleNewsFeed(),
+                karma.KarmaFeed(),
+                #ars.ArsTechnicaFeed(),
+                #physorg.PhysorgFeed(),
+                reuters.ReutersFeed(),
+                #bbc.BBCFeed(),
+                #torrentfreak.TorrentfreakFeed(),
+            )
 
-    processes = [multiprocessing.Process(target=f) for f in functions]
+    processes = [multiprocessing.Process(target=f.watch) for f in feeds]
 
     for p in processes:
         p.start()

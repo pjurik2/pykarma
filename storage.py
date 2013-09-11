@@ -1,4 +1,24 @@
+import cPickle as pickle
+import os, os.path
 import codecs
+
+def pickle_load(s, default=None):
+    try:
+        f = open('store/%s.pk' % s, 'rb')
+        ret = pickle.load(f)
+        f.close()
+    except:
+        ret = default
+
+    return ret
+
+def pickle_save(name, obj):
+    if not os.path.exists('store'):
+        os.mkdir('store')
+        
+    f = open('store/%s.pk' % name, 'wb')
+    pickle.dump(obj, f)
+    f.close()
 
 def repl_clean(s):
     return map(unicode.strip, s.rsplit('=', 1))

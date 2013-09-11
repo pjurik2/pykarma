@@ -1,8 +1,4 @@
 # -*- coding: cp1252 -*-
-#import socks
-#import socket
-##socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, "127.0.0.1", 8080)
-##socket.socket = socks.socksocket
 
 import time
 import threading
@@ -10,9 +6,9 @@ import re
 import urllib2
 import urllib
 
-import xmlparse
+import encoding
 
-from repl import *
+from storage import *
 
 endswith = repl_load('filters/tfendswith.txt')
 startswith = repl_load('filters/tfstartswith.txt')
@@ -27,7 +23,7 @@ title_strip = u'\r\n\t -:«»||•—'
 def title_parse(title, url=''):
     global startswith, endswith, title_strip
     
-    title = xmlparse.unescape(title).strip().strip(title_strip)
+    title = encoding.unescape(title).strip().strip(title_strip)
     title = re.sub(u'\s+', u' ', title, flags=re.UNICODE)
 
     for urlpart, pattern in startswith:
