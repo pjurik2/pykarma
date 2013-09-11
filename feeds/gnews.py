@@ -1,17 +1,20 @@
 import rss
+from rss import RSSFeed
 
-def gnews_link_filter(link):
-    try:
-        return link.rsplit('&url=', 1)[-1]
-    except:
-        return link
+def GoogleNewsFeed(RSSFeed):
+    def configure(self):
+        self.title = 'Google'
+        self.streams = ['http://news.google.com/news?pz=1&cf=all&ned=us&hl=en&topic=tc&output=rss',
+                        'http://news.google.com/news?pz=1&cf=all&ned=us&hl=en&topic=snc&output=rss',
+                        'http://news.google.com/news?pz=1&cf=all&ned=us&hl=en&topic=w&output=rss']
 
-def gnews_watch():
-    streams = ['http://news.google.com/news?pz=1&cf=all&ned=us&hl=en&topic=tc&output=rss',
-               'http://news.google.com/news?pz=1&cf=all&ned=us&hl=en&topic=snc&output=rss',
-               'http://news.google.com/news?pz=1&cf=all&ned=us&hl=en&topic=w&output=rss']
 
-    rss.rss_watch(streams, 'Google', rss_link_filter=gnews_link_filter)
+    def url_pre_filter(self, link):
+        try:
+            return link.rsplit('&url=', 1)[-1]
+        except:
+            return link
 
 if __name__ == '__main__':
-    gnews_watch()
+    f = GoogleNewsFeed()
+    f.watch()

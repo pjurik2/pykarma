@@ -14,8 +14,8 @@ import xmlparse
 
 from repl import *
 
-endswith = repl_load('tfendswith.txt')
-startswith = repl_load('tfstartswith.txt')
+endswith = repl_load('filters/tfendswith.txt')
+startswith = repl_load('filters/tfstartswith.txt')
 ratelimit = [('reddit.com', 3.5)]
 threadlimit = [('reddit.com', 1)]
 lastvisit = {}

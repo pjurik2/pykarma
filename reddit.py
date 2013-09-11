@@ -23,9 +23,9 @@ def get_submit_url(url, title, subreddit=''):
 def reload_filters():
     global url_filter, title_filter
 
-    with file('filterurls.txt', 'r') as f:
+    with file('filters/filterurls.txt', 'r') as f:
         url_filter = map(str.strip, f.readlines())
-    with file('filtertitles.txt', 'r') as f:
+    with file('filters/filtertitles.txt', 'r') as f:
         title_filter = map(str.strip, f.readlines())
 
 reload_filters()

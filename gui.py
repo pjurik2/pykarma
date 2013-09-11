@@ -226,8 +226,8 @@ class GUIMain:
         self.links.SetStringItem(i, 4, "(%f/%f) (%f) %s" % (sub_pairs[0][0], sub_ratio, ratio, keywords))
 
         self.links.SetItemTextColour(i, wx.Colour((color&0xFF0000)>>16,
-                                                 (color&0x00FF00)>>8,
-                                                 (color&0x0000FF)))
+                                                  (color&0x00FF00)>>8,
+                                                  (color&0x0000FF)))
         
         self.links.ScrollList(0, 1000)
         self.links_lock.release()

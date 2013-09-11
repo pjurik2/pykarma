@@ -24,15 +24,15 @@ def re_compiler(terms, cflags=0):
                    flags=cflags)
     return c, r"\1(%s)\2" % terms[1]
 
-replace_words = dict(repl_load('wordreplace.txt'))
+replace_words = dict(repl_load('filters/wordreplace.txt'))
 
-replace = repl_load('kreplace.txt')
+replace = repl_load('filters/kreplace.txt')
 replace_dict = dict(replace)
 r_str = '|'.join(map(re.escape, list(replace_dict.iterkeys())))
 replace_filter = re.compile(u"(\W|\A)(%s)(\W|\Z)" % r_str, flags=(re.UNICODE|re.IGNORECASE))
 
 
-replace_cased = repl_load('kcreplace.txt')
+replace_cased = repl_load('filters/kcreplace.txt')
 replace_cased_dict = dict(replace_cased)
 rc_str = '|'.join(map(re.escape, list(replace_cased_dict.iterkeys())))
 replace_cased_filter = re.compile(u"(\W|\A)(%s)(\W|\Z)" % rc_str, flags=re.UNICODE)
@@ -99,7 +99,7 @@ class TitleStats:
     def __init__(self):
         self.lock = threading.Lock()
         self.since_save = 0
-        with codecs.open('common.txt', 'r', encoding='utf-8') as f:
+        with codecs.open('filters/common.txt', 'r', encoding='utf-8') as f:
             self.common = map(unicode.strip, f.read().split('\n'))
             
         self.words = pickle_load('words', {})
@@ -352,7 +352,11 @@ class TitleStats:
 
 
             retest_correct = self.test(links)
-            print 'Crawled /r/%s -' % crawl_sub, len(self.words), 'words,', len(self.subs), 'subs,', '%d/%d links (%d/%d/%d new)' % (len(links), len(self.link_names), self.correct, retest_correct, new)
+            print 'Crawled /r/%s -' % crawl_sub, \
+                  '%d/%d links were new. Guessed correct subreddit for %d links before training, %d after.' % \
+                  (new, len(links), self.correct, retest_correct), \
+                  'Now storing:', len(self.words), 'words,', len(self.subs), \
+                  'subs,', len(self.link_names), 'links'
 
             time.sleep(3)
             i += 1
