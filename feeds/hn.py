@@ -11,7 +11,7 @@ import reddit
 from guiclient import new_rpc
 import encoding
 
-USE_API = 2
+USE_API = False
 
 def tag_get(tag, html):
     return re.findall('<%s(?: (.*?))?>(.*?)</%s>' % (tag, tag), html)

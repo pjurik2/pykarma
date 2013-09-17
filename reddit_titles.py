@@ -84,7 +84,7 @@ word_ignore = []
 
 ncrawl_queue = ['technology', 'programming', 'worldnews', 'science',
                 'politics', 'atheism', 'Music', 'movies',
-                'trees', 'soccer', 'nfl', 'canada', 'news', 'nba',
+                'soccer', 'nfl', 'canada', 'news', 'nba',
                 'Android', 'books', 'hockey', 'food', 'Drugs',
                 'netsec', 'Space', 'geek', 'Health', 'Environment',
                 'Business', 'economy', 'Apple', 'Android', 'Google', 'Microsoft']

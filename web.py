@@ -56,7 +56,7 @@ class Web:
         if agent is None:
             #self.agent = 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)'
             #self.agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.79 Safari/535.11'
-            self.agent = "Mozilla/5.0 (Windows NT 6.1; WOW64) LK Test 1.0" 
+            self.agent = "PK Test 1.0" 
         else:
             self.agent = agent
 

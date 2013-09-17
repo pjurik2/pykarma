@@ -26,19 +26,20 @@ class RSSFeed(Feed):
         self.max_subs = 0
         self.web = web.Web()
         self.urls = set()
-
-        self.configure()
-
-        try:
-            self.rpc = new_rpc(self.stream_title)
-        except:
-            self.rpc = None
-            print 'Warning: Running without RPC'
+        
+        # except:
+            # self.rpc = None
+            # print 'Warning: Running without RPC'
 
     def configure(self):
         pass
 
     def watch(self, new_streams=None):
+        self.configure()
+
+        # try:
+        self.rpc = new_rpc(self.title)
+        
         if new_streams is None:
             new_streams = []
             
@@ -96,8 +97,8 @@ class RSSFeed(Feed):
             subreddit = self.rpc.subreddit(title)
             keywords = self.rpc.keywords(title)
             
-            if self.rpc.linkcheck(url, title) <= max_subs:
-                self.rpc.linkadd(stream_title, title, post_url, subreddit, keywords)
+            if self.rpc.linkcheck(url, title) <= self.max_subs:
+                self.rpc.linkadd(self.title, title, url, subreddit, keywords)
 
         try:
             req.close()

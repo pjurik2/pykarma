@@ -6,7 +6,6 @@ import web
 
 url_filter = []
 title_filter = []
-agent = 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)'
 
 def get_submit_url(url, title, subreddit=''):
     req = urllib.urlencode({u'url': url.encode('utf-8'),

@@ -12,13 +12,13 @@ if __name__ == '__main__':
 
     feeds = (
                 #hn.HackerNewsFeed(),
-                #gnews.GoogleNewsFeed(),
+                gnews.GoogleNewsFeed(),
                 karma.KarmaFeed(),
-                #ars.ArsTechnicaFeed(),
-                #physorg.PhysorgFeed(),
+                ars.ArsTechnicaFeed(),
+                physorg.PhysorgFeed(),
                 reuters.ReutersFeed(),
-                #bbc.BBCFeed(),
-                #torrentfreak.TorrentfreakFeed(),
+                bbc.BBCFeed(),
+                torrentfreak.TorrentfreakFeed(),
             )
 
     processes = [multiprocessing.Process(target=f.watch) for f in feeds]

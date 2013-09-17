@@ -2,6 +2,7 @@ import threading
 import SocketServer
 import struct
 import wx
+import json
 
 import reddit
 
@@ -9,6 +10,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     def __init__(self, request, client_address, server):
         SocketServer.BaseRequestHandler.__init__(self, request, client_address, server)
         self.root = None
+        self.request_answered = False
 
     def handle(self):
         self.requests = {'write': self.request_write,
@@ -46,69 +48,84 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         if length > 0 and new_data == '':
             return False
             
+        data = json.loads(data)
         try:
-            req_id, req_data = data.split('\0', 2)[:2]
-            req_id = req_id.decode('utf-8')
-            req_data = req_data.decode('utf-8')
+            req_id = data['type']
+            req_token = data.get('token', -1)
+            req_data = data
         except:
             print 'Invalid request'
             return False
 
-        
+        self.request_answered = False
         try:
             handler = self.requests[req_id]
         except:
             handler = self.request_unhandled
 
-        handler(req_data)
+        ret = handler(req_data)
+        if self.request_answered is False:
+            self.respond({'type': req_id, 'success': (ret is not False), 'token': req_token})
         return True
-            
-    def explode(self, data):
-        args = data.split('{/}')
-        args_fixed = [arg.replace('//', '/') for arg in args]
 
-        return args_fixed
-
-    def request_keywords(self, title):
-        self.respond(self.root.title_stats.keywords(title))
+    def request_keywords(self, data):
+        data.update({'keywords': self.root.title_stats.keywords(data['title'])})
+        self.respond(data)
 
     def request_linkcheck(self, data):
-        ret = unicode(self.root.link_check(*self.explode(data)))
-        self.respond(ret)
+        title = data.get('title', '')
+        url = data.get('url', '')
+        
+        data.update({'count': self.root.link_check(url, title)})
+        self.respond(data)
 
-    def request_linkadd(self, args):
-        self.root.links_append_safe(*self.explode(args))
-        self.respond('OK')
+    def request_linkadd(self, data):   
+        source = data['source']
+        title = data['title']
+        url = data['url']
+        subreddit = data['subreddit']
+        keywords = data['keywords']
+        
+        self.root.links_append_safe(source, title, url, subreddit, keywords)
+        
+        return True
 
-    def request_setkarma(self, karma):
+    def request_setkarma(self, data):
         try:
-            wx.CallAfter(self.root.set_karma, karma)
-            self.respond('OK')
+            wx.CallAfter(self.root.set_karma, data['karma'])
+            
+            return True
         except:
-            self.respond('ER')
+            return False
 
-    def request_getkarma(self, etc):
+    def request_getkarma(self, data):
+        
         try:
-            self.respond(unicode(reddit.get_karma()))
+            data.update({'karma': unicode(reddit.get_karma())})
+            self.respond(data)
         except:
-            self.respond('ER')
+            return False
 
-    def request_subreddit(self, title):
-        self.respond(self.root.title_stats.identify(title))
+    def request_subreddit(self, data):
+        data.update({'subreddit': self.root.title_stats.identify(data['title'])})
+        self.respond(data)
+        return True
 
-    def request_write(self, text):
-        self.root.fout.write(text)
-        self.respond('OK')
+    def request_write(self, data):
+        self.root.fout.write(data['text'])
+        return True
 
     def request_unhandled(self, data):
-        self.respond('ER')
+        return False
 
     def respond(self, contents):
-        data = '%s%s' % (struct.pack('L', len(contents.encode('utf-8'))),
-                         contents.encode('utf-8'))
+        contents = json.dumps(contents)
+        
+        data = '%s%s' % (struct.pack('L', len(contents)), contents)
 
         try:
             self.request.sendall(data)
+            self.request_answered = True
         except:
             print 'Client socket request error'
 

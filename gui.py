@@ -52,7 +52,7 @@ class GUIMain:
         self.server.serve()
 
         self.app = wx.App()
-        self.frame = wx.Frame(None, -1, 'Karma Krawler')
+        self.frame = wx.Frame(None, -1, 'PyKarma')
 
         self.sizer = wx.GridBagSizer()
         self.sizer.AddGrowableCol(0, 10)
@@ -135,6 +135,7 @@ class GUIMain:
 
     def links_append(self, source, title, url, subreddit, keywords='',
                     force=False):
+                    
         self.links_lock.acquire()
         if url in self.links_checked or \
            ((url in self.links_queued) and not force) or\
@@ -207,7 +208,9 @@ class GUIMain:
                 sub_pairs = ((0.0, 'none'),)
             sub_ratio = 1.0
 
-        if (len(kws)-unk_word) < 3 or ratio > 0.30 or subreddit == '':
+        if (len(kws)-unk_word) < 3 or \
+           ratio > 0.30 or \
+           subreddit == '':
             color = 0x990000
 
         else:

@@ -1,6 +1,7 @@
 import struct
 import socket
 import socks
+import json
 
 import out
 
@@ -16,52 +17,50 @@ class GUIClient():
         self.sock.connect((self.ip, self.port))
 
     def write(self, text):
-        return self.request('write', text)
+        return self.request('write', {'text': text})
 
     def subreddit(self, title):
-        return self.request('subreddit', title)
+        return self.request('subreddit', {'title': title})['subreddit']
 
     def keywords(self, title):
-        return self.request('keywords', title)
+        return self.request('keywords', {'title': title})['keywords']
 
     def setkarma(self, karma):
-        try:
-            return self.request('setkarma', unicode(karma))
-        except:
-            return 'SE'
+        return self.request('setkarma', {'karma': karma})
 
     def linkcheck(self, url, title):
-        ret = self.request('linkcheck', self.implode(url, title))
-        try:
-            return int(ret)
-        except:
-            return 'SE'
+        ret = self.request('linkcheck', {'url': url, 'title': title})
+        return ret['count']
 
     def getkarma(self):
-        ret = self.request('getkarma', u'')
-        try:
-            return int(ret)
-        except:
-            return 'SE'
+        ret = self.request('getkarma')
+        return ret['karma']
 
     def linkadd(self, source, title, url, subreddit, keywords=''):
-        return self.request('linkadd', self.implode(source, title, url, subreddit, keywords))
+        req = {'source': source,
+               'title': title,
+               'url': url,
+               'subreddit': subreddit,
+               'keywords': keywords}
+               
+        return self.request('linkadd', req)
 
-    def implode(self, *args):
-        args_fixed = [arg.replace('/', '//') for arg in args]
-
-        data = '{/}'.join(args_fixed)
-        return data
-
-
-    def request(self, ident, contents):
-        data = '%s%s\0%s\0' % (struct.pack('L', len(ident.encode('utf-8'))+len(contents.encode('utf-8'))+2),
-                               ident.encode('utf-8'),
-                               contents.encode('utf-8'))
+    def request(self, ident, contents=None):
+        self.send(ident, contents)
+        return self.recv()
+    
+    def send(self, ident, contents=None):
+        if contents is None:
+            contents = {}
+            
+        contents['type'] = ident
+        contents = json.dumps(contents)
+        data = '%s%s' % (struct.pack('L', len(contents)),
+                         contents)
 
         self.sock.sendall(data)
 
-
+    def recv(self):
         length_str = self.sock.recv(4)
         length = struct.unpack('L', length_str)[0]
         data = ''
@@ -72,7 +71,7 @@ class GUIClient():
 
             data += new_data
 
-        return data.decode('utf-8')
+        return json.loads(data)
 
 def new_rpc(name='Client'):
     s = GUIClient(9367)
