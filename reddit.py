@@ -2,7 +2,9 @@ import urllib
 import urllib2
 import json
 import time
+
 import web
+from constants import REDDIT_USERNAME
 
 url_filter = []
 title_filter = []
@@ -29,10 +31,13 @@ def get_submit_url(url, title, subreddit=''):
 
     return submit_url
 
-def get_karma(user='testname33'):
+def get_karma(username=None):
+    if username is None:
+        username = REDDIT_USERNAME
+        
     w = web.Web()
 
-    url = 'http://www.reddit.com/user/{user}/about.json'.format(user=user)
+    url = 'http://www.reddit.com/user/{username}/about.json'.format(username=username)
     
     while True:
         try:

@@ -24,12 +24,13 @@ class GUIClient():
     def gui_karma_get(self):
         return self.request('gui.karma_get')['karma']
 
-    def gui_link_add(self, source, title, url, subreddit, keywords=''):
-        req = {'source': source,
+    def gui_link_add(self, source, title, url, subreddit, keywords='', **kwargs):
+        req = kwargs
+        req.update({'source': source,
                'title': title,
                'url': url,
                'subreddit': subreddit,
-               'keywords': keywords}
+               'keywords': keywords})
                
         return self.request('gui.link_add', req)
 
@@ -42,6 +43,10 @@ class GUIClient():
     def get_link_posted_count(self, url, title=''):
         ret = self.request('reddit.get_link_posted_count', {'url': url, 'title': title})
         return ret['count']
+        
+    def get_learned_stats(self, title, keywords=None):
+        ret = self.request('reddit.get_learned_stats', {'keywords': keywords, 'title': title})
+        return ret
 
     def request(self, ident, contents=None):
         self.send(ident, contents)

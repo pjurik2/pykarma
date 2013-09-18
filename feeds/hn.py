@@ -8,7 +8,7 @@ import web
 import urllib2
 
 import reddit
-from guiclient import new_rpc
+from gui_client import new_rpc
 import encoding
 
 USE_API = False
@@ -216,7 +216,8 @@ class HackerNewsFeed:
                     keywords = rpc.get_title_keywords(title)
                     url = post['url']
                     if reddit.url_output(title, subreddit, url, rpc):
-                        rpc.gui_link_add('HN', title, url, subreddit, keywords)
+                        stats = self.rpc.get_learned_stats(title, keywords)
+                        rpc.gui_link_add('HN', title, url, subreddit, keywords, **stats)
 
             sleep_sec = random.randint(50, 70)
             sleep_step = sleep_sec / 10.0

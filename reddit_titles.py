@@ -32,7 +32,7 @@ class TitleStats:
 
         self.active_subreddit = self.subreddit_queue.pop()
 
-    def word_count(self, word, quiet=False):
+    def word_count(self, word, quiet=True):
         self.lock.acquire()
 
         if word not in self.words:
@@ -47,8 +47,9 @@ class TitleStats:
             self.lock.release()
             return 0
 
+        count = self.words[word][u'all']
         self.lock.release()
-        return self.words[word][u'all']
+        return count
 
     def most_matched(self, test_title, recent_titles):
         test_keywords = self.keywords_work(test_title)
@@ -68,6 +69,72 @@ class TitleStats:
         matched.sort()
 
         return matched[-1]
+        
+    def stats(self, title, keywords=None):
+        # TODO: Make this more efficient by using intermediate values from
+        #       other functions of this class
+        
+        if keywords is None:
+            keywords = self.keywords(title)
+            
+        kws = keywords.split(' ')
+        total_count = 0
+        unk_word = 0
+        for kw in kws:
+            if kw.startswith('-'):
+                kw = kw[1:]
+                
+            wc = self.word_count(kw, quiet=False)
+
+            if wc == 0:
+                unk_word += 1
+            else:
+                total_count += wc
+
+        total_inv = 0
+        matched_inv = 0
+        if total_count != 0:
+            total_count = float(total_count)
+            for kw in kws:
+                if kw[0] == '-':
+                    kww = kw[1:]
+                else:
+                    kww = kw
+                    
+                try:
+                    inv_ratio = total_count / self.word_count(kww)
+                except ZeroDivisionError:
+                    continue
+                    
+                if kw[0] == '-':
+                    matched_inv += inv_ratio
+                    
+                total_inv += inv_ratio
+                
+
+        if len(kws) == 0:
+            staleness_ratio = 1.0
+        else:
+            try:
+                staleness_ratio = matched_inv / total_inv
+            except ZeroDivisionError:
+                staleness_ratio = 0.0
+
+        sub_pairs = self.identify_list(title)
+        if len(sub_pairs) > 1:
+            try:
+                relative_certainty = sub_pairs[0][0] / sub_pairs[1][0]
+            except:
+                print 'sub_ratio calculation error'
+                relative_certainty = 1.0
+        else:
+            if len(sub_pairs) == 0:
+                sub_pairs = ((0.0, 'none'),)
+            relative_certainty = 1.0
+            
+        match_strength = sub_pairs[0][0]
+        
+        return match_strength, relative_certainty, staleness_ratio
 
     def keywords(self, title):
         self.lock.acquire()
@@ -144,8 +211,11 @@ class TitleStats:
                     continue
 
                 for k, v in self.words[w].iteritems():
+                    # don't use excluded subreddits
                     if k.lower() in self.removed_subreddits:
                         continue
+                        
+                    # don't return subreddits with less than 10000 keywords of training
                     if self.subs[k] < 10000:
                         continue
 

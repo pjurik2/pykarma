@@ -19,6 +19,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                          'gui.link_add': self.req_gui_link_add,
                          'reddit.get_title_subreddit': self.req_get_title_subreddit,
                          'reddit.get_title_keywords': self.req_get_title_keywords,
+                         'reddit.get_learned_stats': self.req_get_learned_stats,
                          'reddit.get_link_posted_count': self.req_get_link_posted_count
                          }
 
@@ -68,6 +69,19 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         if self.req_answered is False:
             self.respond({'type': req_id, 'success': (ret is not False), 'token': req_token})
         return True
+        
+    def req_get_learned_stats(self, data):
+        title = data['title']
+        keywords = data.get('keywords', None)
+        
+        match_strength, relative_certainty, staleness_ratio = self.root.title_stats.stats(title, keywords)
+        
+        del data['title']
+        del data['keywords']
+        data.update({'match_strength': match_strength,
+                     'relative_certainty': relative_certainty,
+                     'staleness_ratio': staleness_ratio})
+        self.respond(data)
 
     def req_gui_write(self, data):
         self.root.fout.write(data['text'])
@@ -79,8 +93,12 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         url = data['url']
         subreddit = data['subreddit']
         keywords = data['keywords']
+        match_strength = data.get('match_strength', 1.0)
+        relative_certainty = data.get('relative_certainty', 1.0)
+        staleness_ratio = data.get('staleness_ratio', 0.0)
         
-        self.root.links_append_safe(source, title, url, subreddit, keywords)
+        self.root.links_append_safe(source, title, url, subreddit, keywords,
+                                    match_strength, relative_certainty, staleness_ratio)
         
         return True
 

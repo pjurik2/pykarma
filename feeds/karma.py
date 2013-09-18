@@ -1,6 +1,6 @@
 import time
 
-from guiclient import new_rpc
+from gui_client import new_rpc
 
 class KarmaFeed:
     def watch(self):

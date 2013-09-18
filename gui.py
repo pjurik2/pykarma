@@ -8,7 +8,7 @@ import time
 import pyperclip
 
 import reddit_titles
-from guiserv import GUIServer
+from gui_service import GUIServer
 from storage import *
 import reddit
 
@@ -46,8 +46,7 @@ class GUIMain:
         self.url_next = None
         
         self.title_stats = reddit_titles.TitleStats()
-        self.rtitles_thread = threading.Thread(target=self.title_stats.crawl)
-        self.rtitles_thread.start()
+        threading.Thread(target=self.title_stats.crawl).start()
         
         self.server = GUIServer(self, HOST, PORT)
         self.server.serve()
@@ -88,7 +87,10 @@ class GUIMain:
         self.links.InsertColumn(1, 'Title', width=375)
         self.links.InsertColumn(2, 'URL', width=200)
         self.links.InsertColumn(3, 'Subreddit', width=97)
-        self.links.InsertColumn(4, 'Keywords', width=375)
+        self.links.InsertColumn(4, 'Match Strength', width=97)
+        self.links.InsertColumn(5, 'Relative Certainty', width=97)
+        self.links.InsertColumn(6, 'Staleness', width=80)
+        self.links.InsertColumn(7, 'Keywords', width=325)
 
         self.links.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.links_activate)
         self.links.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.links_right)
@@ -135,7 +137,8 @@ class GUIMain:
         wx.CallAfter(self.links_append, *args, **kwargs)
 
     def links_append(self, source, title, url, subreddit, keywords='',
-                    force=False):
+                     match_strength=0.0, relative_certainty=1.0, staleness_ratio=0.0,
+                     force=False):
                     
         self.links_lock.acquire()
         if url in self.links_checked or \
@@ -144,81 +147,13 @@ class GUIMain:
             self.links_lock.release()
             return
 
-        kws = keywords.split(' ')
-        found = 0
-        total_count = 0
-        unk_word = 0
-        for kw in kws:
-            if kw.startswith('-'):
-                found += 1
-                try:
-                    wc = self.title_stats.word_count(kw[1:])
-                except ZeroDivisionError:
-                    continue
-            else:
-                try:
-                    wc = self.title_stats.word_count(kw)
-                except ZeroDivisionError:
-                    continue
-
-            if wc == 0:
-                unk_word += 1
-            else:
-                total_count += wc
-
-        total_inv = 0
-        matched_inv = 0
-        if total_count != 0:
-            total_count = float(total_count)
-            for kw in kws:
-                if kw.startswith('-'):
-                    try:
-                        inv_ratio = total_count / self.title_stats.word_count(kw[1:], quiet=True)
-                    except ZeroDivisionError:
-                        continue
-                    matched_inv += inv_ratio
-                else:
-                    try:
-                        inv_ratio = total_count / self.title_stats.word_count(kw, quiet=True)
-                    except ZeroDivisionError:
-                        continue
-                total_inv += inv_ratio
-                
-
-        if len(kws) == 0:
-            ratio = 1.0
-        else:
-            try:
-                ratio = matched_inv / total_inv
-            except ZeroDivisionError:
-                ratio = 0.0
-
-        if ratio == 1.0:
-            self.links_lock.release()
-            return
-
-        sub_pairs = self.title_stats.identify_list(title)
-        if len(sub_pairs) > 1:
-            try:
-                sub_ratio = sub_pairs[0][0] / sub_pairs[1][0]
-            except:
-                print 'sub_ratio calculation error'
-                sub_ratio = 1.0
-        else:
-            if len(sub_pairs) == 0:
-                sub_pairs = ((0.0, 'none'),)
-            sub_ratio = 1.0
-
-        if (len(kws)-unk_word) < 3 or \
-           ratio > 0.30 or \
-           subreddit == '':
+        if staleness_ratio > 0.30 or subreddit == '':
             color = 0x990000
-
         else:
             color = 0x009900
             
         
-        self.links_queued[url] = (source, title, url, subreddit, keywords)
+        self.links_queued[url] = (source, title, url, subreddit, keywords, match_strength, relative_certainty, staleness_ratio)
         self.links_save()
         
         i = self.links.GetItemCount()
@@ -227,7 +162,10 @@ class GUIMain:
         self.links.SetStringItem(i, 1, title)
         self.links.SetStringItem(i, 2, url)
         self.links.SetStringItem(i, 3, "%s" % subreddit)
-        self.links.SetStringItem(i, 4, "(%f/%f) (%f) %s" % (sub_pairs[0][0], sub_ratio, ratio, keywords))
+        self.links.SetStringItem(i, 4, "{0:.4f}".format(match_strength))
+        self.links.SetStringItem(i, 5, "{0:.4f}".format(relative_certainty))
+        self.links.SetStringItem(i, 6, "{0:.4f}".format(staleness_ratio))
+        self.links.SetStringItem(i, 7, keywords)
 
         self.links.SetItemTextColour(i, wx.Colour((color&0xFF0000)>>16,
                                                   (color&0x00FF00)>>8,

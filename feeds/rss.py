@@ -11,7 +11,7 @@ if os.getcwd().rstrip(os.sep).endswith('feeds'):
     os.chdir('..')
     sys.path.insert(0, os.getcwd())
 
-from guiclient import new_rpc
+from gui_client import new_rpc
 import web
 import reddit
 
@@ -96,7 +96,8 @@ class RSSFeed(Feed):
             keywords = self.rpc.get_title_keywords(title)
             
             if self.rpc.get_link_posted_count(url, title) <= self.max_subs:
-                self.rpc.gui_link_add(self.title, title, url, subreddit, keywords)
+                stats = self.rpc.get_learned_stats(title, keywords)
+                self.rpc.gui_link_add(self.title, title, url, subreddit, keywords, **stats)
 
         try:
             req.close()
