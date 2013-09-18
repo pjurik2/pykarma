@@ -10,16 +10,17 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     def __init__(self, request, client_address, server):
         SocketServer.BaseRequestHandler.__init__(self, request, client_address, server)
         self.root = None
-        self.request_answered = False
+        self.req_answered = False
 
     def handle(self):
-        self.requests = {'write': self.request_write,
-                         'subreddit': self.request_subreddit,
-                         'setkarma': self.request_setkarma,
-                         'getkarma': self.request_getkarma,
-                         'linkcheck': self.request_linkcheck,
-                         'linkadd': self.request_linkadd,
-                         'keywords': self.request_keywords}
+        self.requests = {'gui.write': self.req_gui_write,
+                         'gui.karma_set': self.req_gui_karma_set,
+                         'gui.karma_get': self.req_gui_karma_get,
+                         'gui.link_add': self.req_gui_link_add,
+                         'reddit.get_title_subreddit': self.req_get_title_subreddit,
+                         'reddit.get_title_keywords': self.req_get_title_keywords,
+                         'reddit.get_link_posted_count': self.req_get_link_posted_count
+                         }
 
         while self.handle_request():
             pass
@@ -57,29 +58,22 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             print 'Invalid request'
             return False
 
-        self.request_answered = False
+        self.req_answered = False
         try:
             handler = self.requests[req_id]
         except:
-            handler = self.request_unhandled
+            handler = self.req_unhandled
 
         ret = handler(req_data)
-        if self.request_answered is False:
+        if self.req_answered is False:
             self.respond({'type': req_id, 'success': (ret is not False), 'token': req_token})
         return True
 
-    def request_keywords(self, data):
-        data.update({'keywords': self.root.title_stats.keywords(data['title'])})
-        self.respond(data)
-
-    def request_linkcheck(self, data):
-        title = data.get('title', '')
-        url = data.get('url', '')
+    def req_gui_write(self, data):
+        self.root.fout.write(data['text'])
+        return True
         
-        data.update({'count': self.root.link_check(url, title)})
-        self.respond(data)
-
-    def request_linkadd(self, data):   
+    def req_gui_link_add(self, data):   
         source = data['source']
         title = data['title']
         url = data['url']
@@ -90,7 +84,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         
         return True
 
-    def request_setkarma(self, data):
+    def req_gui_karma_set(self, data):
         try:
             wx.CallAfter(self.root.set_karma, data['karma'])
             
@@ -98,24 +92,31 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         except:
             return False
 
-    def request_getkarma(self, data):
+    def req_gui_karma_get(self, data):
         
         try:
             data.update({'karma': unicode(reddit.get_karma())})
             self.respond(data)
         except:
             return False
+        
+    def req_get_title_keywords(self, data):
+        data.update({'keywords': self.root.title_stats.keywords(data['title'])})
+        self.respond(data)
 
-    def request_subreddit(self, data):
+    def req_get_link_posted_count(self, data):
+        title = data.get('title', '')
+        url = data.get('url', '')
+        
+        data.update({'count': self.root.get_link_posted_count(url, title)})
+        self.respond(data)
+
+    def req_get_title_subreddit(self, data):
         data.update({'subreddit': self.root.title_stats.identify(data['title'])})
         self.respond(data)
         return True
 
-    def request_write(self, data):
-        self.root.fout.write(data['text'])
-        return True
-
-    def request_unhandled(self, data):
+    def req_unhandled(self, data):
         return False
 
     def respond(self, contents):
@@ -125,7 +126,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         try:
             self.request.sendall(data)
-            self.request_answered = True
+            self.req_answered = True
         except:
             print 'Client socket request error'
 

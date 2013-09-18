@@ -7,6 +7,16 @@ import web
 url_filter = []
 title_filter = []
 
+def reload_filters():
+    global url_filter, title_filter
+
+    with file('filters/removed_urls.txt', 'r') as f:
+        url_filter = map(str.strip, f.readlines())
+    with file('filters/removed_titles.txt', 'r') as f:
+        title_filter = map(str.strip, f.readlines())
+
+reload_filters()
+
 def get_submit_url(url, title, subreddit=''):
     req = urllib.urlencode({u'url': url.encode('utf-8'),
                             u'title': title.encode('utf-8')})
@@ -18,16 +28,6 @@ def get_submit_url(url, title, subreddit=''):
         submit_url = u'http://www.reddit.com/submit?%s' % req
 
     return submit_url
-
-def reload_filters():
-    global url_filter, title_filter
-
-    with file('filters/filterurls.txt', 'r') as f:
-        url_filter = map(str.strip, f.readlines())
-    with file('filters/filtertitles.txt', 'r') as f:
-        title_filter = map(str.strip, f.readlines())
-
-reload_filters()
 
 def get_karma(user='testname33'):
     w = web.Web()
@@ -53,7 +53,7 @@ def get_karma(user='testname33'):
 
         return user.get('link_karma', 0)
     
-def reddit_check_url(url, title=''):
+def get_link_posted_count(url, title=''):
     for s in title_filter:
         if s.lower() in title.lower():
             return 'filtered'

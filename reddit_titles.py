@@ -1,116 +1,36 @@
-# -*- coding: cp1252 -*-
-##import socks
-##import socket
-##socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, "127.0.0.1", 8080)
-##socket.socket = socks.socksocket
-
 import json
 import time
 import re
 import threading
-from copy import copy
-import codecs
+import copy
+
 import web
-
 from storage import *
+from sanitize import get_keywords
 
-def re_ccompiler(terms):
-    return re_compiler(terms, re.IGNORECASE)
-
-def re_compiler(terms, cflags=0):
-    cflags |= re.UNICODE
-    c = re.compile(u"(\W|\A)%s(\W|\Z)" % re.escape(terms[0]),
-                   flags=cflags)
-    return c, r"\1(%s)\2" % terms[1]
-
-replace_words = dict(repl_load('filters/wordreplace.txt'))
-
-replace = repl_load('filters/kreplace.txt')
-replace_dict = dict(replace)
-r_str = '|'.join(map(re.escape, list(replace_dict.iterkeys())))
-replace_filter = re.compile(u"(\W|\A)(%s)(\W|\Z)" % r_str, flags=(re.UNICODE|re.IGNORECASE))
-
-
-replace_cased = repl_load('filters/kcreplace.txt')
-replace_cased_dict = dict(replace_cased)
-rc_str = '|'.join(map(re.escape, list(replace_cased_dict.iterkeys())))
-replace_cased_filter = re.compile(u"(\W|\A)(%s)(\W|\Z)" % rc_str, flags=re.UNICODE)
-
-def replc(m):
-    global replace_cased_dict
-    g2 = replace_cased_dict.get(m.group(2), m.group(2))
-    return m.group(1) + g2 + m.group(3)
-
-def repl(m):
-    global replace_dict
-    g2 = replace_dict.get(m.group(2).lower(), m.group(2))
-    return m.group(1) + g2 + m.group(3)
-
-
-filter_num_commas = re.compile(u'([0-9]+),(?=[0-9]+)', flags=re.UNICODE)
-filter_apostrophes = re.compile(u'(\W*)((?:\w\S*?\w)|(?:\w+?))(?:\'|’|’|‘)s(\W*)',
-                                flags=re.UNICODE)
-
-find_words = re.compile(u'\W*((?:\w\S*\w)|(?:\w+))\W*',
-                        flags=re.UNICODE)
-
-def get_words(s):
-    global replace
-    global filter_num_commas, filter_apostrophes, find_words
-
-    global replace_filter, replace_cased_filter
-
-    s = s.replace('--', ' ')
-    s = filter_num_commas.sub(r'\1', s)
-    s = filter_apostrophes.sub(r'\1\2\3', s)
-
-    s = replace_filter.sub(repl, s)
-    s = replace_cased_filter.sub(replc, s)
-
-    l = find_words.findall(s.lower())
-
-    for i in range(len(l)):
-        if l[i] in replace_words:
-            l[i] = replace_words[l[i]]
-
-    l = list(set(l))
-    l.sort()
-    
-    return l
-
-sub_ignore = ['blog', 'askreddit', 'self', 'pics', 'videos', 'gifs', 'all']
-word_ignore = []
-
-
-ncrawl_queue = ['technology', 'programming', 'worldnews', 'science',
-                'politics', 'atheism', 'Music', 'movies',
-                'soccer', 'nfl', 'canada', 'news', 'nba',
-                'Android', 'books', 'hockey', 'food', 'Drugs',
-                'netsec', 'Space', 'geek', 'Health', 'Environment',
-                'Business', 'economy', 'Apple', 'Android', 'Google', 'Microsoft']
-
-crawl_queue = copy(ncrawl_queue)
-
-crawl_sub = crawl_queue.pop()
-new_url_format = 'http://www.reddit.com/r/%s/new/.json?sort=new&t=all&count=%d&after=%s'
+SUBREDDIT_NEW_POSTS_URL = 'http://www.reddit.com/r/%s/new/.json?sort=new&t=all&count=%d&after=%s'
 
 class TitleStats:
     def __init__(self):
         self.lock = threading.Lock()
-        self.since_save = 0
-        with codecs.open('filters/common.txt', 'r', encoding='utf-8') as f:
-            self.common = map(unicode.strip, f.read().split('\n'))
-            
+        
+        self.removed_keywords = linelist_load('filters/removed_keywords.txt')
         self.words = pickle_load('words', {})
         self.subs = pickle_load('subs', {})
         self.titles = pickle_load('titles', [])
         self.link_names = pickle_load('links', {})
         
-        self.subs_recent = {}
-        self.subs_trecent = {}
-        self.subs_newest = {}
-        self.subs_tnewest = {}
+        self.keyword_counts_recent = {}
+        self.keyword_titles_recent = {}
+        self.keyword_counts_newest = {}
+        self.keyword_titles_newest = {}
         self.correct = 0
+        
+        self.removed_subreddits = linelist_load('filters/removed_subreddits.txt')
+        self.allowed_subreddits = linelist_load('filters/allowed_subreddits.txt')
+        self.subreddit_queue = copy.copy(self.allowed_subreddits)
+
+        self.active_subreddit = self.subreddit_queue.pop()
 
     def word_count(self, word, quiet=False):
         self.lock.acquire()
@@ -148,7 +68,6 @@ class TitleStats:
         matched.sort()
 
         return matched[-1]
-        
 
     def keywords(self, title):
         self.lock.acquire()
@@ -161,10 +80,10 @@ class TitleStats:
         matched = [(0.0, '')]
 
         for w in ret:
-            if w in self.subs_recent:
-                matched.append(self.most_matched(title, self.subs_trecent[w]))
-            elif w in self.subs_newest:
-                matched.append(self.most_matched(title, self.subs_tnewest[w]))
+            if w in self.keyword_counts_recent:
+                matched.append(self.most_matched(title, self.keyword_titles_recent[w]))
+            elif w in self.keyword_counts_newest:
+                matched.append(self.most_matched(title, self.keyword_titles_newest[w]))
                                             
         matched.sort()
 
@@ -180,10 +99,10 @@ class TitleStats:
         return ret
 
     def keywords_work(self, title, s=True):
-        title_words = get_words(title)
+        title_keywords = get_keywords(title)
         keywords = []
-        for w in title_words:
-            if w in self.common:
+        for w in title_keywords:
+            if w in self.removed_keywords:
                 continue
             keywords.append(w)
 
@@ -194,7 +113,7 @@ class TitleStats:
 
     def identify(self, title):
         self.lock.acquire()
-        while self.subs_recent == {}:
+        while self.keyword_counts_recent == {}:
             self.lock.release()
             time.sleep(1)
             self.lock.acquire()
@@ -217,18 +136,15 @@ class TitleStats:
         return ret
 
     def identify_list_work(self, title):
-        title_words = self.keywords_work(title, s=False)
+        title_keywords = self.keywords_work(title, s=False)
         sub_counts = {}
-        for w in title_words:
-            if w in word_ignore:
-                continue
-            
+        for w in title_keywords:
             if w in self.words:
                 if self.words[w] is None:
                     continue
 
                 for k, v in self.words[w].iteritems():
-                    if k.lower() in sub_ignore:
+                    if k.lower() in self.removed_subreddits:
                         continue
                     if self.subs[k] < 10000:
                         continue
@@ -247,12 +163,12 @@ class TitleStats:
         
         title = link.get('title', '')
         sub = link.get('subreddit', '')
-        title_words = get_words(title)
+        title_keywords = get_keywords(title)
 
         if page == 0:
-            for w in title_words:
-                self.subs_newest[w] = self.subs_newest.get(w, 0)+1
-                self.subs_tnewest[w] = self.subs_tnewest.get(w, [])+[title]
+            for w in title_keywords:
+                self.keyword_counts_newest[w] = self.keyword_counts_newest.get(w, 0)+1
+                self.keyword_titles_newest[w] = self.keyword_titles_newest.get(w, [])+[title]
 
         if name in self.link_names:
             self.lock.release()
@@ -265,9 +181,9 @@ class TitleStats:
         if guess == sub:
             self.correct += 1
 
-        self.subs[sub] = self.subs.get(sub, 0) + len(title_words)
+        self.subs[sub] = self.subs.get(sub, 0) + len(title_keywords)
 
-        for w in title_words:
+        for w in title_keywords:
             if w in self.words:
                 if self.words[w] is None:
                     continue
@@ -281,8 +197,6 @@ class TitleStats:
         return True
                 
     def crawl(self, crawl=0):
-        global crawl_sub, crawl_queue, ncrawl_queue
-
         after = None #results token
         
         i = 0
@@ -290,9 +204,9 @@ class TitleStats:
         w = web.Web()
         while crawl == 0 or i < crawl:
             if after is None:
-                url = 'http://www.reddit.com/r/%s/new/.json?sort=new&t=all' % crawl_sub
+                url = 'http://www.reddit.com/r/%s/new/.json?sort=new&t=all' % self.active_subreddit
             else:
-                url = new_url_format % (crawl_sub, i*25, after)
+                url = SUBREDDIT_NEW_POSTS_URL % (self.active_subreddit, i*25, after)
                 
             if first_round:
                 print 'Crawling', url
@@ -324,28 +238,28 @@ class TitleStats:
                     new -= 1
 
             if new == 0 or first_round:
-                if len(crawl_queue) == 0:
-                    crawl_queue = copy(ncrawl_queue)
+                if len(self.subreddit_queue) == 0:
+                    self.subreddit_queue = copy.copy(self.allowed_subreddits)
                     first_round = False
 
                     self.lock.acquire()
-                    self.subs_recent = copy(self.subs_newest)
-                    self.subs_trecent = copy(self.subs_tnewest)
-                    self.subs_newest = {}
-                    self.subs_tnewest = {}
+                    self.keyword_counts_recent = copy.copy(self.keyword_counts_newest)
+                    self.keyword_titles_recent = copy.copy(self.keyword_titles_newest)
+                    self.keyword_counts_newest = {}
+                    self.keyword_titles_newest = {}
                     self.lock.release()
                     
                 i = 0
 
-                pre_crawl_sub = crawl_sub
-                crawl_sub = crawl_queue.pop()
+                pre_active_subreddit = self.active_subreddit
+                self.active_subreddit = self.subreddit_queue.pop()
                 after = None
                 
                 if not first_round:
                     time.sleep(10)
                     continue
                 else:
-                    print 'Crawled /r/%s -' % pre_crawl_sub, \
+                    print 'Crawled /r/%s -' % pre_active_subreddit, \
                     '%d/%d links were new. Training: %d sorted correctly.' % (new, len(links), self.correct), \
                     'Now storing:', len(self.words), 'words,', len(self.subs), \
                     'subs,', len(self.link_names), 'links'
@@ -354,7 +268,7 @@ class TitleStats:
 
 
             retest_correct = self.test(links)
-            print 'Crawled /r/%s -' % crawl_sub, \
+            print 'Crawled /r/%s -' % self.active_subreddit, \
                   '%d/%d links were new. Training: %d -> %d sorted correctly.' % \
                   (new, len(links), self.correct, retest_correct), \
                   'Now storing:', len(self.words), 'words,', len(self.subs), \
@@ -382,12 +296,5 @@ class TitleStats:
         pickle_save('links', self.link_names)
         pickle_save('titles', self.titles)
 
-if __name__ == '__main__':
-    r = [None] * 100
-    s = time.time()
-    for x in range(100):
-        r[x] = get_words("asdf this is AI ai really neat barack obama is nkorea")
 
-    print time.time() - s
-    print r[-1]
     

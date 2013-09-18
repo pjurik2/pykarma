@@ -1,0 +1,7 @@
+blog
+askreddit
+self
+pics
+videos
+gifs
+all

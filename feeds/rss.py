@@ -9,13 +9,11 @@ import HTMLParser
 from feed import Feed
 if os.getcwd().rstrip(os.sep).endswith('feeds'):
     os.chdir('..')
-    sys.path[0] = os.getcwd()
+    sys.path.insert(0, os.getcwd())
 
 from guiclient import new_rpc
 import web
 import reddit
-
-random.seed(Feed)
 
 class RSSFeed(Feed):
     def __init__(self):
@@ -24,21 +22,21 @@ class RSSFeed(Feed):
         self.wait_range = (60, 70)
         self.max_error_wait = 600
         self.max_subs = 0
-        self.web = web.Web()
-        self.urls = set()
         
-        # except:
-            # self.rpc = None
-            # print 'Warning: Running without RPC'
+        self.urls = set()
 
     def configure(self):
         pass
 
     def watch(self, new_streams=None):
         self.configure()
+        self.web = web.Web()
 
-        # try:
-        self.rpc = new_rpc(self.title)
+        try:
+            self.rpc = new_rpc(self.title)
+        except:
+            self.rpc = None
+            print 'Warning: Running without RPC'
         
         if new_streams is None:
             new_streams = []
@@ -94,11 +92,11 @@ class RSSFeed(Feed):
         title = self.title_filter(page_title, feed_title)
 
         if self.rpc is not None:
-            subreddit = self.rpc.subreddit(title)
-            keywords = self.rpc.keywords(title)
+            subreddit = self.rpc.get_title_subreddit(title)
+            keywords = self.rpc.get_title_keywords(title)
             
-            if self.rpc.linkcheck(url, title) <= self.max_subs:
-                self.rpc.linkadd(self.title, title, url, subreddit, keywords)
+            if self.rpc.get_link_posted_count(url, title) <= self.max_subs:
+                self.rpc.gui_link_add(self.title, title, url, subreddit, keywords)
 
         try:
             req.close()

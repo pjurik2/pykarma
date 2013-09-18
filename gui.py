@@ -44,6 +44,7 @@ class GUIMain:
         self.links_lock = threading.Lock()
         self.check_lock = threading.Lock()
         self.url_next = None
+        
         self.title_stats = reddit_titles.TitleStats()
         self.rtitles_thread = threading.Thread(target=self.title_stats.crawl)
         self.rtitles_thread.start()
@@ -109,7 +110,7 @@ class GUIMain:
         self.karma.SetLabel('Link Karma: %s' % karma)
         self.sizer.Layout()
 
-    def link_check(self, url, title=''):
+    def get_link_posted_count(self, url, title=''):
         self.links_lock.acquire()
         if url in self.links_checked:
             self.links_lock.release()
@@ -118,7 +119,7 @@ class GUIMain:
         if url not in self.check_cache:
             self.links_lock.release()
             self.check_lock.acquire()
-            val = len(reddit.reddit_check_url(url, title))
+            val = len(reddit.get_link_posted_count(url, title))
             self.check_lock.release()
             self.links_lock.acquire()
             self.check_cache[url] = val
@@ -138,7 +139,7 @@ class GUIMain:
                     
         self.links_lock.acquire()
         if url in self.links_checked or \
-           ((url in self.links_queued) and not force) or\
+           ((url in self.links_queued) and not force) or \
            title == '':
             self.links_lock.release()
             return

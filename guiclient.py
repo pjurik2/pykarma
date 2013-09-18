@@ -1,6 +1,5 @@
 import struct
 import socket
-import socks
 import json
 
 import out
@@ -10,40 +9,39 @@ class GUIClient():
         self.port = port
         self.ip = ip
         self.sock = None
+        self.write = self.gui_write
 
     def connect(self):
-        socks.setdefaultproxy()
         self.sock = socket.socket()
         self.sock.connect((self.ip, self.port))
 
-    def write(self, text):
-        return self.request('write', {'text': text})
+    def gui_write(self, text):
+        return self.request('gui.write', {'text': text})
+        
+    def gui_karma_set(self, karma):
+        return self.request('gui.karma_set', {'karma': karma})
+        
+    def gui_karma_get(self):
+        return self.request('gui.karma_get')['karma']
 
-    def subreddit(self, title):
-        return self.request('subreddit', {'title': title})['subreddit']
-
-    def keywords(self, title):
-        return self.request('keywords', {'title': title})['keywords']
-
-    def setkarma(self, karma):
-        return self.request('setkarma', {'karma': karma})
-
-    def linkcheck(self, url, title):
-        ret = self.request('linkcheck', {'url': url, 'title': title})
-        return ret['count']
-
-    def getkarma(self):
-        ret = self.request('getkarma')
-        return ret['karma']
-
-    def linkadd(self, source, title, url, subreddit, keywords=''):
+    def gui_link_add(self, source, title, url, subreddit, keywords=''):
         req = {'source': source,
                'title': title,
                'url': url,
                'subreddit': subreddit,
                'keywords': keywords}
                
-        return self.request('linkadd', req)
+        return self.request('gui.link_add', req)
+
+    def get_title_subreddit(self, title):
+        return self.request('reddit.get_title_subreddit', {'title': title})['subreddit']
+
+    def get_title_keywords(self, title):
+        return self.request('reddit.get_title_keywords', {'title': title})['keywords']
+
+    def get_link_posted_count(self, url, title=''):
+        ret = self.request('reddit.get_link_posted_count', {'url': url, 'title': title})
+        return ret['count']
 
     def request(self, ident, contents=None):
         self.send(ident, contents)
@@ -83,5 +81,5 @@ if __name__ == '__main__':
     print 'Starting RPC...'
     rpc = new_rpc()
     print 'RPC started.'
-    print rpc.subreddit('Black March begins today - hit RIAA & MPAA where it hurts')
+    print rpc.get_title_subreddit('Black March begins today - hit RIAA & MPAA where it hurts')
     print 'Exiting...'

@@ -3,62 +3,27 @@
 import time
 import threading
 import re
-import urllib2
-import urllib
-
-import encoding
+import urllib2, urllib
 
 from storage import *
+from sanitize import *
 
-endswith = repl_load('filters/tfendswith.txt')
-startswith = repl_load('filters/tfstartswith.txt')
-ratelimit = [('reddit.com', 3.5)]
-threadlimit = [('reddit.com', 1)]
-lastvisit = {}
-lvlock = threading.Lock()
-outstanding = {}
-
-title_strip = u'\r\n\t -:«»||•—'
-
-def title_parse(title, url=''):
-    global startswith, endswith, title_strip
-    
-    title = encoding.unescape(title).strip().strip(title_strip)
-    title = re.sub(u'\s+', u' ', title, flags=re.UNICODE)
-
-    for urlpart, pattern in startswith:
-        if (urlpart in url) and title.startswith(pattern):
-            before_title = title
-            title = title[len(pattern):].strip(title_strip)
-    for urlpart, pattern in endswith:
-        if (urlpart in url) and title.endswith(pattern):
-            before_title = title
-            title = title[:-len(pattern)].strip(title_strip)
-
-    return title
+rate_limits = [('reddit.com', 3.5)]
 
 class Web:
     """
     Opens a web page and returns urllib2 file object with results.
 
-    It handles cookies, and sends IE8 user agent.
     """
-    def __init__(self, spoof=True, agent=None):
-
-        #Add cookie handling
-##        self.cj = cookielib.LWPCookieJar()
-##        if os.path.isfile('cookies.lwp'):
-##            self.cj.load('cookies.lwp')
-##        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
-##        urllib2.install_opener(opener)
-
-        self.spoof = spoof
+    def __init__(self, set_user_agent=True, agent=None):
+        self.set_user_agent = set_user_agent
         if agent is None:
-            #self.agent = 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)'
-            #self.agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.79 Safari/535.11'
             self.agent = "PK Test 1.0" 
         else:
             self.agent = agent
+            
+        self.last_visits = {}
+        self.last_visit_lock = threading.Lock()
 
     def get(self, url, headers=None, **kwargs):
         """Gets web page, returns file object."""
@@ -66,27 +31,27 @@ class Web:
         if headers is None:
             headers = {}
 
-        for url_part, wait in ratelimit:
+        for url_part, wait in rate_limits:
             if url_part not in url:
                 continue
 
-            lvlock.acquire()
-            last = lastvisit.get(url_part, 0.0)
-            lvlock.release()
+            self.last_visit_lock.acquire()
+            last = self.last_visits.get(url_part, 0.0)
+            self.last_visit_lock.release()
             diff = time.time() - last
 
             while diff < wait:
                 #print 'Rate limit \"%s\" caught: sleeping %f seconds.' % (url_part, wait-diff)
                 time.sleep(wait-diff+0.01)
 
-                lvlock.acquire()
-                last = lastvisit.get(url_part, 0.0)
-                lvlock.release()
+                self.last_visit_lock.acquire()
+                last = self.last_visits.get(url_part, 0.0)
+                self.last_visit_lock.release()
                 diff = time.time() - last
 
-            lvlock.acquire()
-            lastvisit[url_part] = time.time()
-            lvlock.release()
+            self.last_visit_lock.acquire()
+            self.last_visits[url_part] = time.time()
+            self.last_visit_lock.release()
         
         if 'forced_tuple' in kwargs:
             data = urllib.urlencode(kwargs['forced_tuple'])
@@ -97,7 +62,7 @@ class Web:
 
         req = urllib2.Request(url, data, headers)
         
-        if self.spoof:
+        if self.set_user_agent:
             req.add_header('User-Agent', self.agent)
 
         f = urllib2.urlopen(req)
@@ -111,13 +76,13 @@ class Web:
             print 'Web close geturl error'
             return
 
-        for url_part, wait in ratelimit:
+        for url_part, wait in rate_limits:
             if url_part not in url:
                 continue
 
-            lvlock.acquire()
-            lastvisit[url_part] = time.time()
-            lvlock.release()
+            self.last_visit_lock.acquire()
+            self.last_visits[url_part] = time.time()
+            self.last_visit_lock.release()
 
         try:
             req.close()
@@ -149,11 +114,3 @@ class Web:
             return title_parse(titles[0], url)
     
 
-if __name__ == '__main__':
-    s = time.time()
-    t = ''
-    for x in range(1000):
-        t = title_parse("This is an example title | News", "http://en.wikipedia.org/wiki/hi")
-
-    print time.time() - s
-    print "'%s'" % t

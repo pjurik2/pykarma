@@ -212,11 +212,11 @@ class HackerNewsFeed:
 
                 if post['url'].startswith('http://'):
                     title = w.title(post['url'])
-                    subreddit = rpc.subreddit(title)
-                    keywords = rpc.keywords(title)
+                    subreddit = rpc.get_title_subreddit(title)
+                    keywords = rpc.get_title_keywords(title)
                     url = post['url']
                     if reddit.url_output(title, subreddit, url, rpc):
-                        rpc.linkadd('HN', title, url, subreddit, keywords)
+                        rpc.gui_link_add('HN', title, url, subreddit, keywords)
 
             sleep_sec = random.randint(50, 70)
             sleep_step = sleep_sec / 10.0
